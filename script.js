@@ -1,41 +1,34 @@
 const express = require('express'),
   app = express(),
   fs = require('fs'),
+  os = require("os"),
   shell = require('shelljs'),
-
-   // Modify the folder path in which responses need to be stored
-  folderPath = './Responses/',
-  defaultFileExtension = 'json', // Change the default file extension
-  bodyParser = require('body-parser'),
-  DEFAULT_MODE = 'writeFile',
+  folderPath = './Responses',
+  defaultFileExtension = 'csv',
   path = require('path');
 
 // Create the folder path in case it doesn't exist
 shell.mkdir('-p', folderPath);
 
- // Change the limits according to your response size
-app.use(bodyParser.json({limit: '50mb', extended: true}));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true })); 
+app.use(express.json());
 
 app.get('/', (req, res) => res.send('Hello, I write data to file. Send them requests!'));
 
 app.post('/write', (req, res) => {
-  let extension = req.body.fileExtension || defaultFileExtension,
-    fsMode = req.body.mode || DEFAULT_MODE,
-    uniqueIdentifier = req.body.uniqueIdentifier ? typeof req.body.uniqueIdentifier === 'boolean' ? Date.now() : req.body.uniqueIdentifier : false,
-    filename = `${req.body.requestName}${uniqueIdentifier || ''}`,
-    filePath = `${path.join(folderPath, filename)}.${extension}`,
-    options = req.body.options || undefined;
+  const { fileName, iteration, data } = req.body;
+  const filePath = `${path.join(folderPath, fileName)}.${defaultFileExtension}${os.EOL}`;
 
-  fs[fsMode](filePath, req.body.responseData, options, (err) => {
-    if (err) {
-      console.log(err);
-      res.send('Error');
+  try {
+    if (iteration == "0") {
+      // Write the table header
+      fs.appendFileSync(filePath, `Search term,Suggestion${os.EOL}`, "utf8");
     }
-    else {
-      res.send('Success');
-    }
-  });
+    fs.appendFileSync(filePath, `${data}${os.EOL}`, "utf8");
+    res.send("Success");
+  } catch (err) {
+    console.log(err);
+    res.send("Error", err);
+  }
 });
 
 app.listen(3000, () => {
